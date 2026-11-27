@@ -212,6 +212,19 @@
       color: #ffffff;
     }
 
+    .btn-kwitansi {
+      background: var(--bas-orange);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .btn-kwitansi:hover {
+      background: #c2410c;
+      color: #ffffff;
+    }
+
     /* Quick Due Day Pills */
     .due-preset-btn {
       font-size: 0.72rem;
@@ -762,6 +775,15 @@
           </div>
           <div class="app-card-body">
             <div id="itemsContainer"></div>
+            <datalist id="basUnitOptions">
+              <option value="Kg">
+              <option value="Ekor">
+              <option value="Box">
+              <option value="Pack">
+              <option value="Pcs">
+              <option value="Ikat">
+              <option value="Liter">
+            </datalist>
             <button type="button" class="btn btn-bas-outline w-100 btn-sm mt-1" onclick="addItemRow()">
               <i class="bi bi-plus-circle me-1"></i> Tambah Baris Barang Lainnya
             </button>
@@ -779,6 +801,16 @@
           </div>
           <div class="app-card-body">
             <div class="row g-3 mb-3">
+              <div class="col-12">
+                <label class="form-label" for="paidDate">Tanggal Pelunasan (Untuk Kwitansi)</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="bi bi-calendar-check text-success"></i></span>
+                  <input type="date" class="form-control" id="paidDate" onchange="renderPreview()">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" onclick="setPaidDateToday()" title="Set ke tanggal hari ini">
+                    Hari Ini
+                  </button>
+                </div>
+              </div>
               <div class="col-6">
                 <label class="form-label" for="taxValue">Pajak (Opsional)</label>
                 <div class="input-group">
@@ -832,6 +864,9 @@
           <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-bas-primary btn-sm px-3 py-2" id="btnDownloadPdfDesktop" onclick="generatePDF()">
               <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+            </button>
+            <button type="button" class="btn btn-kwitansi btn-sm px-3 py-2" onclick="generateReceiptPDF()">
+              <i class="bi bi-receipt me-1"></i> Kwitansi PDF
             </button>
             <button type="button" class="btn btn-bas-blue btn-sm px-3 py-2" onclick="window.print()">
               <i class="bi bi-printer-fill me-1"></i> Cetak Langsung
@@ -904,9 +939,9 @@
                   <thead>
                     <tr>
                       <th style="width: 7%;" class="text-center">NO</th>
-                      <th style="width: 43%;">DESKRIPSI</th>
+                      <th style="width: 40%;">DESKRIPSI</th>
                       <th style="width: 20%;" class="text-end">HARGA</th>
-                      <th style="width: 10%;" class="text-center">QTY</th>
+                      <th style="width: 13%;" class="text-center">QTY</th>
                       <th style="width: 20%;" class="text-end">TOTAL</th>
                     </tr>
                   </thead>
@@ -1006,6 +1041,9 @@
     <div class="d-flex gap-2">
       <button type="button" class="btn btn-bas-primary flex-grow-1 py-2" onclick="generatePDF()">
         <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+      </button>
+      <button type="button" class="btn btn-kwitansi py-2 px-3" onclick="generateReceiptPDF()" title="Download Kwitansi Pelunasan">
+        <i class="bi bi-receipt"></i>
       </button>
       <button type="button" class="btn btn-bas-blue py-2 px-3" onclick="window.print()" title="Cetak Langsung">
         <i class="bi bi-printer-fill"></i>
@@ -1391,6 +1429,7 @@
       const todayStr = toInputDateString(new Date());
       document.getElementById('invoiceDate').value = todayStr;
       document.getElementById('dueDate').value = addDaysToDateString(todayStr, defaultDays);
+      document.getElementById('paidDate').value = todayStr;
       updateDueDaysUI(defaultDays);
 
       document.getElementById('recipientName').value = '';
@@ -1401,7 +1440,7 @@
       document.getElementById('dpAmount').value = 0;
       document.getElementById('togglePaidStamp').checked = false;
 
-      items = [{ name: '', price: 0, qty: 1 }];
+      items = [{ name: '', price: 0, qty: 1, unit: 'Kg' }];
       renderItemInputs();
       renderPreview();
     }
@@ -1413,6 +1452,7 @@
       document.getElementById('dueDays').value = defaultDays;
       document.getElementById('invoiceDate').value = baseDate;
       document.getElementById('dueDate').value = addDaysToDateString(baseDate, defaultDays);
+      document.getElementById('paidDate').value = toInputDateString(new Date());
       updateDueDaysUI(defaultDays);
 
       document.getElementById('recipientName').value = 'SPPG Yayasan Humaira Sejahtera Waru';
@@ -1424,7 +1464,7 @@
       document.getElementById('togglePaidStamp').checked = false;
 
       items = [
-        { name: 'IKAN NILA FRESH SIZE 9-10', price: 29000, qty: 236 }
+        { name: 'IKAN NILA FRESH SIZE 9-10', price: 29000, qty: 236, unit: 'Kg' }
       ];
 
       renderItemInputs();
@@ -1548,6 +1588,12 @@
       renderPreview();
     }
 
+    function setPaidDateToday() {
+      document.getElementById('paidDate').value = toInputDateString(new Date());
+      renderPreview();
+      showToast('info', 'Tanggal pelunasan diatur ke hari ini');
+    }
+
     /* =========================================================================
        DYNAMIC ITEMS MANAGEMENT
        ========================================================================= */
@@ -1579,18 +1625,24 @@
               <input type="text" class="form-control form-control-sm" placeholder="Nama Barang / Deskripsi (misal: IKAN NILA FRESH SIZE 9-10)"
                 value="${escapeHtml(item.name)}" oninput="updateItemField(${idx}, 'name', this.value)">
             </div>
-            <div class="col-7">
+            <div class="col-12 col-sm-5">
               <div class="input-group input-group-sm">
                 <span class="input-group-text bg-white text-muted">Rp</span>
                 <input type="number" class="form-control" min="0" step="any" placeholder="Harga Satuan"
                   value="${item.price === 0 ? '' : item.price}" oninput="updateItemField(${idx}, 'price', this.value)">
               </div>
             </div>
-            <div class="col-5">
+            <div class="col-6 col-sm-4">
               <div class="input-group input-group-sm">
                 <span class="input-group-text bg-white text-muted">Qty</span>
                 <input type="number" class="form-control" min="0" step="any" placeholder="Vol"
                   value="${item.qty}" oninput="updateItemField(${idx}, 'qty', this.value)">
+              </div>
+            </div>
+            <div class="col-6 col-sm-3">
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control" list="basUnitOptions" placeholder="Satuan"
+                  value="${escapeHtml(item.unit !== undefined ? item.unit : 'Kg')}" oninput="updateItemField(${idx}, 'unit', this.value)" title="Satuan barang (misal: Kg, Ekor, Box, Pack)">
               </div>
             </div>
           </div>
@@ -1600,7 +1652,7 @@
     }
 
     function addItemRow() {
-      items.push({ name: '', price: 0, qty: 1 });
+      items.push({ name: '', price: 0, qty: 1, unit: 'Kg' });
       renderItemInputs();
       renderPreview();
     }
@@ -1614,8 +1666,8 @@
 
     function updateItemField(index, field, value) {
       if (!items[index]) return;
-      if (field === 'name') {
-        items[index].name = value;
+      if (field === 'name' || field === 'unit') {
+        items[index][field] = value;
       } else {
         items[index][field] = parseFloat(value) || 0;
       }
@@ -1675,12 +1727,14 @@
       } else {
         items.forEach((it, idx) => {
           const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 0);
+          const unitLabel = (it.unit || '').trim();
+          const qtyDisplay = unitLabel ? `${formatQty(it.qty)} ${escapeHtml(unitLabel)}` : formatQty(it.qty);
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td class="text-center fw-semibold">${idx + 1}</td>
             <td class="fw-semibold">${escapeHtml(it.name || '-')}</td>
             <td class="text-end text-nowrap">${formatRupiah(it.price)}</td>
-            <td class="text-center">${formatQty(it.qty)}</td>
+            <td class="text-center text-nowrap">${qtyDisplay}</td>
             <td class="text-end fw-bold text-nowrap">${formatRupiah(lineTotal)}</td>
           `;
           tbody.appendChild(tr);
@@ -2011,6 +2065,7 @@
         dueDays: parseInt(document.getElementById('dueDays').value, 10) || 0,
         invoiceDate: document.getElementById('invoiceDate').value,
         dueDate: document.getElementById('dueDate').value,
+        paidDate: document.getElementById('paidDate').value,
         recipientName: recName,
         recipientAddress: document.getElementById('recipientAddress').value.trim(),
         recipientPhone: document.getElementById('recipientPhone').value.trim(),
@@ -2054,13 +2109,16 @@
               <span class="fw-bold text-dark">${escapeHtml(h.recipientName)}</span>
             </div>
             <div class="small text-muted mt-1">
-              Tanggal: ${formatDateIndo(h.invoiceDate)} &bull; Jatuh Tempo: ${formatDateIndo(h.dueDate)} &bull; Total: <strong class="text-success">${formatRupiah(h.remaining)}</strong>
+              Tanggal: ${formatDateIndo(h.invoiceDate)} &bull; Jatuh Tempo: ${formatDateIndo(h.dueDate)}${h.paidDate ? ` &bull; Tgl Lunas: ${formatDateIndo(h.paidDate)}` : ''} &bull; Total: <strong class="text-success">${formatRupiah(h.remaining)}</strong>
             </div>
             <div style="font-size: 0.72rem;" class="text-muted">Disimpan: ${escapeHtml(h.savedAt)}</div>
           </div>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-sm btn-bas-primary" onclick="loadFromHistory('${h.id}')">
               <i class="bi bi-box-arrow-in-down-left me-1"></i> Muat
+            </button>
+            <button type="button" class="btn btn-sm btn-kwitansi" onclick="generateReceiptFromHistory('${h.id}')" title="Download Kwitansi Pelunasan">
+              <i class="bi bi-receipt"></i>
             </button>
             <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteHistory('${h.id}')">
               <i class="bi bi-trash"></i>
@@ -2077,6 +2135,7 @@
       document.getElementById('invoiceNo').value = h.invoiceNo;
       document.getElementById('invoiceDate').value = h.invoiceDate;
       document.getElementById('dueDate').value = h.dueDate;
+      document.getElementById('paidDate').value = h.paidDate || toInputDateString(new Date());
       const calculatedDays = h.dueDays !== undefined
         ? h.dueDays
         : Math.max(0, diffDaysBetweenDates(h.invoiceDate, h.dueDate));
@@ -2175,7 +2234,11 @@
 
       const itemLines = items
         .filter(i => i.name.trim() !== '')
-        .map((i, idx) => `${idx + 1}. ${i.name} (${formatQty(i.qty)} x ${formatRupiah(i.price)}) = ${formatRupiah(i.price * i.qty)}`)
+        .map((i, idx) => {
+          const u = (i.unit || '').trim();
+          const qStr = u ? `${formatQty(i.qty)} ${u}` : formatQty(i.qty);
+          return `${idx + 1}. ${i.name} (${qStr} x ${formatRupiah(i.price)}) = ${formatRupiah(i.price * i.qty)}`;
+        })
         .join('\n');
 
       const statusLine = isPaid ? '\n*STATUS: LUNAS*\n' : '';
@@ -2390,11 +2453,13 @@ Salam hangat,
         // Items Table via jsPDF-AutoTable
         const tableRows = items.map((it, idx) => {
           const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 0);
+          const u = (it.unit || '').trim();
+          const qStr = u ? `${formatQty(it.qty)} ${u}` : formatQty(it.qty);
           return [
             String(idx + 1),
             it.name || '-',
             formatRupiah(it.price),
-            formatQty(it.qty),
+            qStr,
             formatRupiah(lineTotal)
           ];
         });
@@ -2422,11 +2487,11 @@ Salam hangat,
             fillColor: [248, 250, 252]
           },
           columnStyles: {
-            0: { halign: 'center', cellWidth: 13 },
+            0: { halign: 'center', cellWidth: 12 },
             1: { halign: 'left' },
-            2: { halign: 'right', cellWidth: 34 },
-            3: { halign: 'center', cellWidth: 18 },
-            4: { halign: 'right', cellWidth: 38, fontStyle: 'bold' }
+            2: { halign: 'right', cellWidth: 33 },
+            3: { halign: 'center', cellWidth: 23 },
+            4: { halign: 'right', cellWidth: 37, fontStyle: 'bold' }
           },
           didParseCell: function(data) {
             if (data.section === 'head') {
@@ -2540,19 +2605,30 @@ Salam hangat,
         doc.text(formatRupiah(totals.remaining), pageWidth - margin - 2, rightY + 6.5, { align: 'right' });
         rightY += 16;
 
-        // Optional Stempel LUNAS di PDF
+        // Optional Stempel LUNAS di PDF (Disamakan dengan Live Preview)
         const isPaid = document.getElementById('togglePaidStamp').checked;
         if (isPaid) {
           doc.saveGraphicsState();
           doc.setDrawColor(22, 163, 74);
           doc.setTextColor(22, 163, 74);
+
+          const stampW = 34;
+          const stampH = 12;
+          const stampX = pageWidth - margin - stampW - 4;
+          const stampY = rightY + 2;
+
           doc.setLineWidth(0.9);
-          const stampX = rightColX + 4;
-          const stampY = rightY + 4;
-          doc.roundedRect(stampX, stampY - 7, 30, 11, 2, 2, 'S');
+          doc.roundedRect(stampX, stampY, stampW, stampH, 2, 2, 'S');
+          doc.setLineWidth(0.35);
+          doc.roundedRect(stampX + 1.2, stampY + 1.2, stampW - 2.4, stampH - 2.4, 1.5, 1.5, 'S');
+
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(13);
-          doc.text('LUNAS', stampX + 15, stampY + 0.5, { align: 'center' });
+          doc.setFontSize(13.5);
+          doc.text('LUNAS', stampX + stampW / 2, stampY + 8.3, {
+            align: 'center',
+            angle: 14
+          });
+
           doc.restoreGraphicsState();
         }
 
@@ -2633,6 +2709,324 @@ Salam hangat,
       } catch (err) {
         console.error('PDF generation error:', err);
         Swal.fire('Gagal Membuat PDF', 'Terjadi kesalahan saat memproses file PDF. Silakan coba lagi.', 'error');
+      }
+    }
+
+    /* =========================================================================
+       KWITANSI PELUNASAN PDF GENERATOR (A5 LANDSCAPE + TERBILANG OTOMATIS)
+       ========================================================================= */
+    function terbilang(nilai) {
+      const angka = Math.abs(Math.round(Number(nilai) || 0));
+      const huruf = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+
+      function konversi(n) {
+        if (n < 12) return huruf[n];
+        if (n < 20) return konversi(n - 10) + ' Belas';
+        if (n < 100) return konversi(Math.floor(n / 10)) + ' Puluh' + (n % 10 !== 0 ? ' ' + konversi(n % 10) : '');
+        if (n < 200) return 'Seratus' + (n - 100 !== 0 ? ' ' + konversi(n - 100) : '');
+        if (n < 1000) return konversi(Math.floor(n / 100)) + ' Ratus' + (n % 100 !== 0 ? ' ' + konversi(n % 100) : '');
+        if (n < 2000) return 'Seribu' + (n - 1000 !== 0 ? ' ' + konversi(n - 1000) : '');
+        if (n < 1000000) return konversi(Math.floor(n / 1000)) + ' Ribu' + (n % 1000 !== 0 ? ' ' + konversi(n % 1000) : '');
+        if (n < 1000000000) return konversi(Math.floor(n / 1000000)) + ' Juta' + (n % 1000000 !== 0 ? ' ' + konversi(n % 1000000) : '');
+        if (n < 1000000000000) return konversi(Math.floor(n / 1000000000)) + ' Miliar' + (n % 1000000000 !== 0 ? ' ' + konversi(n % 1000000000) : '');
+        return konversi(Math.floor(n / 1000000000000)) + ' Triliun' + (n % 1000000000000 !== 0 ? ' ' + konversi(n % 1000000000000) : '');
+      }
+
+      if (angka === 0) return 'Nol Rupiah';
+      return konversi(angka).replace(/\s+/g, ' ').trim() + ' Rupiah';
+    }
+
+    async function generateReceiptFromHistory(id) {
+      const record = invoiceHistory.find(item => item.id === id);
+      if (!record) return;
+
+      const defaultDate = record.paidDate || document.getElementById('paidDate').value || toInputDateString(new Date());
+      const { value: chosenDate, isConfirmed } = await Swal.fire({
+        title: `Tanggal Pelunasan (INV #${escapeHtml(record.invoiceNo)})`,
+        html: `
+          <div class="text-start">
+            <label class="form-label small fw-bold">Pilih tanggal pelunasan yang akan dicetak di kwitansi:</label>
+            <input type="date" id="swalPaidDateInput" class="form-control" value="${defaultDate}">
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonColor: '#ea580c',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: '<i class="bi bi-file-earmark-pdf-fill me-1"></i> Buat Kwitansi',
+        cancelButtonText: 'Batal',
+        preConfirm: () => {
+          const val = document.getElementById('swalPaidDateInput').value;
+          if (!val) {
+            Swal.showValidationMessage('Silakan pilih tanggal pelunasan terlebih dahulu');
+            return false;
+          }
+          return val;
+        }
+      });
+
+      if (isConfirmed && chosenDate) {
+        record.paidDate = chosenDate;
+        persistHistory();
+        renderHistoryModalList();
+        generateReceiptPDF(record);
+      }
+    }
+
+    async function generateReceiptPDF(historyRecord = null) {
+      try {
+        const { jsPDF } = window.jspdf;
+        // Format A5 Landscape (210mm x 148mm) - Standar Kwitansi Resmi
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [210, 148] });
+
+        const pageWidth = doc.internal.pageSize.getWidth();   // 210 mm
+        const pageHeight = doc.internal.pageSize.getHeight(); // 148 mm
+        const margin = 14;
+
+        // Palet Warna BAS
+        const greenDark = [20, 83, 45];
+        const blueOcean = [11, 79, 138];
+        const orangeAccent = [234, 88, 12];
+        const slateDark = [15, 23, 42];
+        const slateMuted = [100, 116, 139];
+
+        // Ambil data dari Riwayat atau Form Aktif
+        const invNo = historyRecord ? historyRecord.invoiceNo : (document.getElementById('invoiceNo').value.trim() || '001');
+        const invDateRaw = historyRecord ? historyRecord.invoiceDate : document.getElementById('invoiceDate').value;
+        const recName = historyRecord ? historyRecord.recipientName : (document.getElementById('recipientName').value.trim() || '-');
+        const itemList = historyRecord ? (historyRecord.items || []) : items;
+
+        let amountPaid = 0;
+        let hasDp = false;
+        if (historyRecord) {
+          amountPaid = Number(historyRecord.remaining) || 0;
+          hasDp = (Number(historyRecord.dpAmount) || 0) > 0;
+        } else {
+          const totals = getCalculatedTotals();
+          amountPaid = totals.remaining;
+          hasDp = totals.dpAmount > 0;
+        }
+
+        const rawPaidDate = historyRecord
+          ? (historyRecord.paidDate || document.getElementById('paidDate').value || toInputDateString(new Date()))
+          : (document.getElementById('paidDate').value || toInputDateString(new Date()));
+        const paidDateStr = formatDateIndo(rawPaidDate);
+        const invDateStr = formatDateIndo(invDateRaw);
+
+        // Ringkasan nama barang untuk keterangan pembayaran
+        let itemNames = itemList
+          .filter(it => it.name && it.name.trim() !== '')
+          .map(it => {
+            const u = (it.unit || '').trim();
+            const qStr = u ? `${formatQty(it.qty)} ${u}` : formatQty(it.qty);
+            return `${it.name.trim()} (${qStr})`;
+          })
+          .join(', ');
+
+        if (itemNames.length > 160) {
+          itemNames = itemNames.slice(0, 157).trim() + '...';
+        }
+
+        const paymentNote = `Pelunasan ${hasDp ? 'sisa ' : ''}tagihan Invoice #${invNo} tertanggal ${invDateStr}` +
+          (itemNames ? ` untuk pembelian: ${itemNames}.` : '.');
+
+        // 1. Top Accent Stripe & Outer Border
+        doc.setFillColor(...greenDark);
+        doc.rect(0, 0, pageWidth * 0.62, 3.5, 'F');
+        doc.setFillColor(...blueOcean);
+        doc.rect(pageWidth * 0.62, 0, pageWidth * 0.24, 3.5, 'F');
+        doc.setFillColor(...orangeAccent);
+        doc.rect(pageWidth * 0.86, 0, pageWidth * 0.14, 3.5, 'F');
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(margin - 4, 8, pageWidth - (margin - 4) * 2, pageHeight - 16, 3, 3, 'S');
+
+        // 2. Header: Logo (Kiri) & Judul Kwitansi (Kanan)
+        const logoSource = appSettings.logoDataUrl || (!logoLoadFailed ? 'logo-bas.jpeg' : '');
+        const logoResult = await loadImageAsDataURL(logoSource);
+        if (logoResult && logoResult.dataUrl) {
+          const maxH = 22;
+          const maxW = 55;
+          const aspectRatio = logoResult.width / logoResult.height;
+          let drawH = maxH;
+          let drawW = drawH * aspectRatio;
+          if (drawW > maxW) {
+            drawW = maxW;
+            drawH = drawW / aspectRatio;
+          }
+          doc.addImage(logoResult.dataUrl, logoResult.format, margin, 12, drawW, drawH);
+        } else {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(13);
+          doc.setTextColor(...greenDark);
+          doc.text(appSettings.companyName, margin, 20);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(...blueOcean);
+          doc.text(appSettings.companyTagline, margin, 25);
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(...greenDark);
+        doc.text('KWITANSI PELUNASAN', pageWidth - margin, 19, { align: 'right' });
+
+        doc.setFontSize(9);
+        doc.setTextColor(...slateDark);
+        doc.text(`NO. KWITANSI : KWT-${invNo}`, pageWidth - margin, 25.5, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...slateMuted);
+        doc.text(`TANGGAL : ${paidDateStr}`, pageWidth - margin, 30.5, { align: 'right' });
+
+        // Garis Pemisah Header
+        doc.setDrawColor(226, 232, 240);
+        doc.line(margin, 36, pageWidth - margin, 36);
+
+        // 3. Isi Kwitansi
+        let yPos = 45;
+        const labelX = margin;
+        const colonX = margin + 40;
+        const valueX = margin + 44;
+        const valueWidth = pageWidth - margin - valueX;
+
+        // Baris 1: Telah Terima Dari
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...slateMuted);
+        doc.text('Telah Terima Dari', labelX, yPos);
+        doc.text(':', colonX, yPos);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(...slateDark);
+        doc.text(recName, valueX, yPos);
+        doc.setDrawColor(226, 232, 240);
+        doc.line(valueX, yPos + 2, pageWidth - margin, yPos + 2);
+        yPos += 11;
+
+        // Baris 2: Uang Sejumlah (Terbilang dalam kotak)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...slateMuted);
+        doc.text('Uang Sejumlah', labelX, yPos + 1);
+        doc.text(':', colonX, yPos + 1);
+
+        const terbilangText = `# ${terbilang(amountPaid)} #`;
+        const terbilangLines = doc.splitTextToSize(terbilangText, valueWidth - 6);
+        const terbilangBoxH = Math.max(9, terbilangLines.length * 5 + 4);
+
+        doc.setFillColor(240, 253, 244);
+        doc.setDrawColor(187, 247, 208);
+        doc.roundedRect(valueX, yPos - 4.5, valueWidth, terbilangBoxH, 1.5, 1.5, 'FD');
+
+        doc.setFont('helvetica', 'bolditalic');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...greenDark);
+        doc.text(terbilangLines, valueX + 3, yPos + 1);
+        yPos += terbilangBoxH + 6;
+
+        // Baris 3: Untuk Pembayaran
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...slateMuted);
+        doc.text('Untuk Pembayaran', labelX, yPos);
+        doc.text(':', colonX, yPos);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...slateDark);
+        const noteLines = doc.splitTextToSize(paymentNote, valueWidth);
+        doc.text(noteLines, valueX, yPos);
+        yPos += Math.max(12, noteLines.length * 4.8 + 4);
+
+        // 4. Bagian Bawah: Nominal + Stempel LUNAS (Kiri) & Tanda Tangan (Kanan)
+        const bottomY = Math.min(Math.max(yPos + 2, 92), 104);
+
+        // Kotak Nominal
+        doc.setFillColor(...greenDark);
+        doc.roundedRect(margin, bottomY, 74, 13, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(220, 252, 231);
+        doc.text('JUMLAH DITERIMA:', margin + 4, bottomY + 4.5);
+        doc.setFontSize(13);
+        doc.setTextColor(255, 255, 255);
+        doc.text(formatRupiah(amountPaid), margin + 4, bottomY + 10.5);
+
+        // Info Metode Pembayaran
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.8);
+        doc.setTextColor(...slateMuted);
+        doc.text(`Pembayaran via ${appSettings.bankName} (${appSettings.accountNumber})`, margin, bottomY + 18.5);
+        doc.text(`a.n. ${appSettings.accountName}`, margin, bottomY + 22.5);
+
+        // Stempel LUNAS di Tengah (Selaras dengan gaya stempel Invoice)
+        doc.saveGraphicsState();
+        doc.setDrawColor(22, 163, 74);
+        doc.setTextColor(22, 163, 74);
+        const rStampX = margin + 83;
+        const rStampY = bottomY + 1;
+        const rStampW = 34;
+        const rStampH = 12;
+        doc.setLineWidth(0.9);
+        doc.roundedRect(rStampX, rStampY, rStampW, rStampH, 2, 2, 'S');
+        doc.setLineWidth(0.35);
+        doc.roundedRect(rStampX + 1.2, rStampY + 1.2, rStampW - 2.4, rStampH - 2.4, 1.5, 1.5, 'S');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13.5);
+        doc.text('LUNAS', rStampX + rStampW / 2, rStampY + 8.3, { align: 'center', angle: 10 });
+        doc.restoreGraphicsState();
+
+        // Area Tanda Tangan (Kanan)
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        doc.setTextColor(...slateMuted);
+        doc.text(`Diterima tanggal, ${paidDateStr}`, pageWidth - margin, bottomY + 2, { align: 'right' });
+
+        const sigTextY = bottomY + 21;
+        if (appSettings.signatureDataUrl) {
+          const sigObj = await loadImageAsDataURL(appSettings.signatureDataUrl);
+          if (sigObj && sigObj.dataUrl) {
+            const maxSigW = 32;
+            const maxSigH = 14;
+            const sRatio = sigObj.width / sigObj.height;
+            let sh = maxSigH;
+            let sw = sh * sRatio;
+            if (sw > maxSigW) {
+              sw = maxSigW;
+              sh = sw / sRatio;
+            }
+            doc.addImage(sigObj.dataUrl, sigObj.format, pageWidth - margin - sw, bottomY + 4, sw, sh);
+          }
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...slateDark);
+        doc.text(appSettings.signerName, pageWidth - margin, sigTextY, { align: 'right' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(...slateMuted);
+        doc.text(appSettings.signerTitle, pageWidth - margin, sigTextY + 4.2, { align: 'right' });
+
+        // 5. Footer Kontak
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...slateMuted);
+        const footerContact = `${appSettings.companyName}  |  ${appSettings.companyAddress}  |  ${appSettings.companyPhone}  |  ${appSettings.companyEmail}`;
+        doc.text(footerContact, pageWidth / 2, pageHeight - 11, { align: 'center' });
+
+        // Simpan PDF
+        const cleanInv = invNo.replace(/[^a-zA-Z0-9_-]/g, '');
+        const cleanRec = recName.replace(/[^a-zA-Z0-9\s]/g, '').trim().split(/\s+/).slice(0, 4).join('_') || 'Customer';
+        const fileName = `KWITANSI_${cleanInv}_${cleanRec}.pdf`;
+
+        doc.save(fileName);
+        showToast('success', `Kwitansi "${fileName}" berhasil diunduh!`);
+      } catch (err) {
+        console.error('Receipt PDF error:', err);
+        Swal.fire('Gagal Membuat Kwitansi', 'Terjadi kesalahan saat memproses file PDF kwitansi.', 'error');
       }
     }
   </script>
